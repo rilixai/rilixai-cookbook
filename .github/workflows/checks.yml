@@ -4,6 +4,10 @@ on:
   pull_request:
   push:
     branches: [main]
+  schedule:
+    # Daily, so a breaking upstream release is caught by tests-latest-deps.
+    - cron: "17 6 * * *"
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -83,6 +87,42 @@ jobs:
 
       - name: uv sync (locked)
         run: uv sync --group dev --locked
+
+      - name: pytest
+        run: uv run python -m pytest -q
+
+  # A hosted Beaker image is built by pip-installing a recipe's pyproject
+  # *without* its uv.lock, so it resolves the newest versions the declared
+  # ranges allow. The jobs above are ``--locked`` and therefore blind to a
+  # breaking upstream release: stirrup 0.2.0 made a required argument out of
+  # `LiteLLMClient(context_window_tokens=...)` and every hosted rollout died on
+  # it while CI stayed green. This job resolves fresh, daily, so the next such
+  # release surfaces here instead of in a run.
+  tests-latest-deps:
+    name: Pytest, newest allowed deps (${{ matrix.recipe }})
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        recipe: [harvey_lab, hotpotqa, apex_agents]
+    defaults:
+      run:
+        working-directory: ${{ matrix.recipe }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v3
+        with:
+          version: "latest"
+
+      - name: Install Python
+        run: uv python install
+
+      - name: uv sync (newest allowed versions, ignoring uv.lock)
+        run: uv sync --group dev --upgrade --resolution highest
 
       - name: pytest
         run: uv run python -m pytest -q

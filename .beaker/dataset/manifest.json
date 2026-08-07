@@ -1,0 +1,9 @@
+{
+  "source": "https://github.com/harveyai/harvey-labs",
+  "commit": "1da4750171bc5a534960b3d82d15ba7fd2cf653f",
+  "splits": {
+    "train": 10,
+    "val": 5
+  },
+  "notes": "Rows are Harvey LAB tasks from the frozen harvey_lab splits; `expected.criteria` is the task's own rubric. Source documents are not inlined \u2014 the spec fetches each task folder at `commit`."
+}

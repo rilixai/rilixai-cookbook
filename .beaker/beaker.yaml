@@ -1,0 +1,49 @@
+# Beaker project config. Safe to commit — holds no secrets.
+# `spec` owns the local @spec entrypoint used by GitHub-backed spec builds and
+# `beaker run dry-run`. Run-time flags override values here when provided.
+spec:
+  target: "beaker_spec:build_spec"
+  # TEMPORARY (contortion 5 in harvey_lab/beaker_spec.py): `beaker init`
+  # already writes a `pip_install_from: "harvey_lab/pyproject.toml"` key for
+  # monorepo workspaces and *nothing on the platform reads it* — the push route
+  # only knows `pip_install`. Until it is implemented, the layout below is how
+  # this recipe's dependencies reach its image at all. Delete this comment and
+  # move the spec back beside this file once `pip_install_from` works.
+  #
+  # This is a multi-recipe monorepo, but the spec image must be built from a
+  # *single* recipe: the builder pip-installs the bundle root when it finds a
+  # pyproject.toml there, which is the only way the recipe's dependency
+  # closure (stirrup, litellm, the document stack) lands in the image. Point
+  # `source_dir` at the repo root and there is no pyproject at the root, so the
+  # builder falls back to copying the tree onto sys.path and installs *nothing*
+  # — the spec still imports, and the run then dies with ModuleNotFoundError on
+  # the first rollout, inside `HarveyLabAgent.forward`.
+  #
+  # So: bundle = harvey_lab/. Two consequences worth knowing —
+  #   * Only what lives under harvey_lab/ reaches the image. That is why
+  #     beaker_spec.py sits at harvey_lab/beaker_spec.py and not next to this
+  #     file. This config itself must stay at <repo root>/.beaker/beaker.yaml;
+  #     the platform only reads it there.
+  #   * `package_import_root` must be set explicitly. Left unset it defaults to
+  #     <bundle>/src when that exists, and the spec module is not under it.
+  source_dir: "harvey_lab"
+  package_import_root: "."
+
+  # Hand-maintained, and it can drift (contortion 6 in beaker_spec.py).
+  # System binaries the agent shells out to through `code_exec` (see
+  # harvey_lab/README.md "Install"): `pandoc`, `pdftotext` (poppler-utils) and
+  # `soffice` (libreoffice). These are named directly in the task prompt.
+  # pyproject.toml cannot express them, so this list is hand-maintained — the
+  # spec logs a warning at load time for any that are missing. libreoffice is a
+  # heavy layer, but apt runs before pip and is cached unless this list changes.
+  apt_install:
+    - "pandoc"
+    - "poppler-utils"
+    - "libreoffice"
+agent_key: "harvey-lab-test2"
+config_defaults:
+  # Local scaffold dataset used only by `beaker run dry-run`.
+  # For `beaker run trigger`, pass --dataset or set dataset_ref.
+  local_dataset_path: ".beaker/dataset"
+  # Spend cap: maximum metric/evaluation calls the optimizer may make.
+  max_metric_calls: 50

@@ -30,6 +30,10 @@ dependencies = [
   # Install all optional converters so `markitdown <path>` works for .docx,
   # .xlsx, .pptx, and .pdf files in the agent shell.
   "markitdown[all]>=0.1",
+  # Beaker SDK — the `beaker` CLI plus the `@spec` decorator this recipe's
+  # optimization spec is authored against. A runtime dependency (not dev-only)
+  # so the spec stays importable inside the hosted run's image.
+  "beaker-sdk>=0.3.6",
 ]
 
 [project.scripts]

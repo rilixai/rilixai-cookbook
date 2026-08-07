@@ -87,14 +87,27 @@ def _default_model_factory(
     context_window_tokens: int,
     timeout: float,
     reasoning_effort: str,
+    *,
+    api_base: str | None = None,
+    api_key: str | None = None,
 ) -> Any:
-    """Build Stirrup's LiteLLM client (imported lazily; needs ``stirrup[litellm]``)."""
+    """Build Stirrup's LiteLLM client (imported lazily; needs ``stirrup[litellm]``).
+
+    ``api_base``/``api_key`` override where the call goes. Unset (the default),
+    LiteLLM resolves the provider from the model slug and reads that provider's
+    key from the environment. Set, the call is sent to one OpenAI-compatible
+    endpoint instead — which is how a hosted Beaker rollout reaches its
+    selected model through the run's inference gateway, holding no provider
+    credential of its own.
+    """
     from stirrup.clients.litellm_client import LiteLLMClient, ReasoningEffort
 
     # ``none``/empty is the documented "non-reasoning model" sentinel: send no
     # reasoning param at all.
     effort = reasoning_effort if reasoning_effort not in ("", "none") else None
     kwargs: dict[str, Any] = {"temperature": temperature, "timeout": timeout}
+    if api_base is not None:
+        kwargs["api_base"] = api_base
     if effort is not None:
         # litellm only forwards ``reasoning_effort`` for models it already knows
         # are reasoning-capable; a newly released model (e.g. deepseek-v4-pro on
@@ -107,6 +120,7 @@ def _default_model_factory(
         max_tokens=max_tokens,
         context_window_tokens=context_window_tokens,
         reasoning_effort=cast("ReasoningEffort | None", effort),
+        api_key=api_key,
         kwargs=kwargs,
     )
 
